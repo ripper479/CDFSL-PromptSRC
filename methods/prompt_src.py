@@ -7,17 +7,17 @@ from torch.nn import functional as F
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import _LRScheduler
 
-from clip import clip
-from simple_tokenizer import SimpleTokenizer as _Tokenizer
-from imagenet_templates import IMAGENET_TEMPLATES
+from .clip import _MODELS, _download, build_model, tokenize
+from .simple_tokenizer import SimpleTokenizer as _Tokenizer
+from .imagenet_templates import IMAGENET_TEMPLATES
 
 _tokenizer = _Tokenizer()
 
 
 def load_clip_to_cpu(zero_shot_model=False):
     backbone_name = "ViT-B/16"
-    url = clip._MODELS[backbone_name]
-    model_path = clip._download(url)
+    url = _MODELS[backbone_name]
+    model_path = _download(url)
 
     try:
         # loading JIT archive
@@ -32,14 +32,14 @@ def load_clip_to_cpu(zero_shot_model=False):
                           "language_depth": 9,
                           "vision_ctx": 4,
                           "language_ctx": 4}
-        model = clip.build_model(state_dict or model.state_dict(), design_details)
+        model = build_model(state_dict or model.state_dict(), design_details)
     else:
         # Return original CLIP model for generating frozen VL features
         design_details = {"trainer": 'IVLP',
                           "vision_depth": 0,
                           "language_depth": 0, "vision_ctx": 0,
                           "language_ctx": 0}
-        model = clip.build_model(state_dict or model.state_dict(), design_details)
+        model = build_model(state_dict or model.state_dict(), design_details)
         return model
     return model
 
@@ -83,7 +83,7 @@ class VLPromptLearner(nn.Module):
             # use given words to initialize context vectors
             ctx_init = ctx_init.replace("_", " ")
             n_ctx = n_ctx
-            prompt = clip.tokenize(ctx_init)
+            prompt = tokenize(ctx_init)
             with torch.no_grad():
                 embedding = clip_model.token_embedding(prompt).type(dtype)
             ctx_vectors = embedding[0, 1: 1 + n_ctx, :]
@@ -103,7 +103,7 @@ class VLPromptLearner(nn.Module):
         name_lens = [len(_tokenizer.encode(name)) for name in classnames]
         prompts = [prompt_prefix + " " + name + "." for name in classnames]
 
-        tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts])  # (n_cls, n_tkn)
+        tokenized_prompts = torch.cat([tokenize(p) for p in prompts])  # (n_cls, n_tkn)
         # Also create frozen CLIP
         clip_model_temp = load_clip_to_cpu(True).float().cuda()
         clip_model_temp_image = load_clip_to_cpu(True)

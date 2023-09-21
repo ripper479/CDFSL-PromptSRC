@@ -11,7 +11,7 @@ import time, json
 def get_classnames(data_file):
     with open(data_file, 'r') as f:
       meta = json.load(f) 
-      return meta['label_names'].tolist()    
+      return meta['label_names']    
 
 
 def train(base_loader, val_loader, trainer, start_epoch, stop_epoch, params):
