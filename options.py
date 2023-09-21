@@ -13,9 +13,9 @@ def parse_args():
   parser.add_argument('--save_dir', default='output', type=str, help='')
   parser.add_argument('--data_dir', default='filelists', type=str, help='')
   parser.add_argument('--save_freq', default=40, type=int, help='Save frequency')
-  parser.add_argument('--start_epoch', default=0, type=int, help='Starting epoch')
-  parser.add_argument('--stop_epoch', default=400, type=int, help='Stopping epoch')
-  parser.add_argument('--resume_epoch', default=0, type=int, help='')
+  parser.add_argument('--start_epoch', default=1, type=int, help='Starting epoch')
+  parser.add_argument('--stop_epoch', default=51, type=int, help='Stopping epoch')
+  parser.add_argument('--resume_epoch', default=1, type=int, help='')
   # Pretrain
   parser.add_argument('--num_classes', default=200, type=int, help='total number of classes in softmax')
   # Train
