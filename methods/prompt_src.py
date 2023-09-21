@@ -106,7 +106,7 @@ class VLPromptLearner(nn.Module):
         tokenized_prompts = torch.cat([tokenize(p) for p in prompts])  # (n_cls, n_tkn)
         # Also create frozen CLIP
         clip_model_temp = load_clip_to_cpu(True).float().cuda()
-        clip_model_temp_image = load_clip_to_cpu(True)
+        clip_model_temp_image = load_clip_to_cpu(True).float()
         with torch.no_grad():
             embedding = clip_model.token_embedding(tokenized_prompts).type(dtype)
             self.ZS_image_encoder = clip_model_temp_image.visual
@@ -115,7 +115,7 @@ class VLPromptLearner(nn.Module):
             # Using multiple text templates to ensure textual diversity during training
             for single_template in IMAGENET_TEMPLATES:
                 x = [single_template.replace("{}", name) for name in classnames]
-                x_tokenized = torch.cat([clip.tokenize(p) for p in x])
+                x_tokenized = torch.cat([tokenize(p) for p in x])
                 text_features = clip_model_temp.encode_text(x_tokenized.cuda())
                 all_teacher_features.append(text_features.unsqueeze(1))
 
@@ -319,7 +319,7 @@ class PromptSRC(nn.Module):
             if self.change_way:
                 self.n_way  = image.size(0)
             self.optim.zero_grad()
-            loss = self.set_forward_backward(image,label)
+            loss = self.forward_backward(image,label)
             loss.backward()
             self.optim.step()
             avg_loss = avg_loss+loss.item()
@@ -374,6 +374,11 @@ class PromptSRC(nn.Module):
         return acc_mean
 
     def forward_backward(self, image, label):
+
+        image = image.contiguous().view( self.n_way * (self.n_support + self.n_query), *image.size()[2:])
+
+        image = image.to(self.device)
+        label = label.to(self.device)
 
         loss_ce, normalized_text_features, zs_clip_text_embeddings, zs_image_embedd, image_ft, \
         zero_shot_logits, logits = self.model(image, label)
