@@ -195,7 +195,7 @@ class CustomCLIP(nn.Module):
                 zero_shot_features = self.prompt_learner.ZS_image_encoder(image.type(self.dtype))
                 zero_shot_features = zero_shot_features / zero_shot_features.norm(dim=-1, keepdim=True)
                 # Compute pre-trained frozen visual features
-                zero_shot_logits = logit_scale * zero_shot_features.cuda() @ fixed_embeddings.half().cuda().t()
+                zero_shot_logits = logit_scale * zero_shot_features.cuda() @ fixed_embeddings.cuda().t()
 
             return F.cross_entropy(logits,
                                    label), text_features, fixed_embeddings, zero_shot_features, \
@@ -315,13 +315,12 @@ class PromptSRC(nn.Module):
         print_freq = len(train_loader) // 10
         avg_loss=0
         for i, (image, label) in enumerate(train_loader):
+
             self.n_query = image.size(1) - self.n_support
             if self.change_way:
                 self.n_way  = image.size(0)
-            self.optim.zero_grad()
+            
             loss = self.forward_backward(image,label)
-            loss.backward()
-            self.optim.step()
             avg_loss = avg_loss+loss.item()
 
             if (i + 1) % print_freq==0:
@@ -375,7 +374,8 @@ class PromptSRC(nn.Module):
 
     def forward_backward(self, image, label):
 
-        image = image.contiguous().view( self.n_way * (self.n_support + self.n_query), *image.size()[2:])
+        image = image.view(-1, *image.size()[2:])
+        label = label.view(-1, *label.size()[2:])
 
         image = image.to(self.device)
         label = label.to(self.device)
@@ -387,7 +387,7 @@ class PromptSRC(nn.Module):
                                     reduction='mean') * 25
         # Calculate the L_SCL_image loss
         loss_scl_image = F.l1_loss(image_ft, zs_image_embedd.cuda(),
-                                    reduction='mean') * 25
+                                    reduction='mean') * 10
         # Now calculate L_SCL_logits
         L_SCL_logits = F.kl_div(
             F.log_softmax(logits / 1, dim=1),
